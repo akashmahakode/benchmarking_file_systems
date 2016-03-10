@@ -32,8 +32,6 @@ ipNode0="ip-172-31-7-158.ec2.internal"
 ipNode1="ip-172-31-0-84.ec2.internal"
 ipNode2="ip-172-31-4-225.ec2.internal"
 
-ceph-deploy osd activate  ip-172-31-0-84.ec2.internal:/tmp/osd ip-172-31-4-225.ec2.internal:/tmp/osd ip-172-31-7-158.ec2.internal:/tmp/osd
-
 NUM_NODES=4
 
 ssh-keygen -t rsa -b 2048
