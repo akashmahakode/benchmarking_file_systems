@@ -9,6 +9,7 @@ import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.s3.transfer.MultipleFileUpload;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.google.common.base.Stopwatch;
 import org.apache.commons.io.FileUtils;
@@ -30,7 +31,7 @@ class S3Benchmarker {
     private String AWS_SECRET_ACCESS_KEY;
     private String BUCKET_NAME;
     // set number of files to 1000 by default
-    private int NUM_FILES = 1000;
+    private int NUM_FILES = 10;
 
 
     private BasicAWSCredentials awsCreds;
@@ -56,16 +57,10 @@ class S3Benchmarker {
     }
 
 
-    boolean createEmptyFiles() throws IOException {
+    boolean startEvaluation() throws IOException {
         try {
             createOneFileAtATime();
             createMultipleFilesInOneShot();
-
-            TransferManager tm = new TransferManager(s3Client);
-
-
-            //  MultipleFileUpload upload = tm.uploadDirectory(BUCKET_NAME,
-            //        "BuildNumber#1", "FilePathYouWant", true);
 
 
         } catch (AmazonServiceException ase) {
@@ -104,14 +99,14 @@ class S3Benchmarker {
     }
 
     private void createOneFileAtATime() throws IOException {
-        File dirName = createDirectory();
+        File dirName = createDirectory("EMPTY_FILES");
 
         for (int i = 1; i <= NUM_FILES ; i ++){
             File file = new File(dirName.getPath() + File.separator + i+".txt");
             file.createNewFile();
         }
-        logBuffer.append(getTimeStamp()+ " : INFO : Uploading a "+NUM_FILES+" empty files to S3 \n");
-        System.out.println("INFO : Uploading a "+NUM_FILES+" empty files to S3 ");
+        logBuffer.append(getTimeStamp()+ " : INFO : Uploading a "+NUM_FILES+" empty files to S3 \"ONE AT A TIME\"\n");
+        System.out.println("INFO : Uploading a " + NUM_FILES + " empty files to S3 ");
         Stopwatch timer = Stopwatch.createStarted();
         for (int i = 1; i <= NUM_FILES ; i ++){
             String key = DIR_NAME_S3+ File.separator + i+".txt";
@@ -120,6 +115,26 @@ class S3Benchmarker {
         }
         Stopwatch stop = timer.stop();
         System.out.println("Uploaded "+NUM_FILES+" in the S3 bucket - "+BUCKET_NAME);
+        System.out.println("Total time taken in Microseconds : "+stop.elapsed(TimeUnit.MICROSECONDS));
+        System.out.println("Total time taken in Milliseconds : " + stop.elapsed(TimeUnit.MILLISECONDS));
+        System.out.println("Total time taken in Seconds : " + stop.elapsed(TimeUnit.SECONDS));
+        System.out.println("Total time taken in Minutes : " + stop.elapsed(TimeUnit.MINUTES));
+        System.out.println("INFO : Finished uploading " + NUM_FILES + " empty files to S3 ");
+        logBuffer.append(getTimeStamp() + " :  INFO : Finished uploading " + NUM_FILES + " empty files to S3 \n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Microseconds : " + stop.elapsed(TimeUnit.MICROSECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Milliseconds : " + stop.elapsed(TimeUnit.MILLISECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Seconds : " + stop.elapsed(TimeUnit.SECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Minutes : " + stop.elapsed(TimeUnit.MINUTES)+"\n");
+
+
+        TransferManager tm = new TransferManager(s3Client);
+        timer = Stopwatch.createStarted();
+        MultipleFileUpload upload = tm.uploadDirectory(BUCKET_NAME, "oneshot", dirName, true);
+        while (upload.isDone()){
+            break;
+        }
+        stop = timer.stop();
+        System.out.println("Uploaded "+NUM_FILES+" in the S3 bucket in one shot- "+BUCKET_NAME);
         System.out.println("Total time taken in Microseconds : "+stop.elapsed(TimeUnit.MICROSECONDS));
         System.out.println("Total time taken in Milliseconds : "+stop.elapsed(TimeUnit.MILLISECONDS));
         System.out.println("Total time taken in Seconds : "+stop.elapsed(TimeUnit.SECONDS));
@@ -168,7 +183,7 @@ class S3Benchmarker {
         return isSuccess;
     }
 
-    private File createDirectory(){
+    private File createDirectory(String folderName){
         //Create Directory to store the empty files
         Date date = Calendar.getInstance().getTime();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_hhmmss");
@@ -182,7 +197,8 @@ class S3Benchmarker {
         directory.mkdirs();
         //Store the directories which are created, this will help in cleaning up
         evaluationDirectories.add(directory);
-        DIR_NAME_S3 = "cs597_s3_eval"+ File.separator + dirName +"_"+ UUID.randomUUID();
+        DIR_NAME_S3 = "cs597_s3_eval"+ File.separator + folderName + File.separator +
+                dirName +"_"+ UUID.randomUUID();
         return directory;
     }
 
@@ -203,7 +219,7 @@ class S3Benchmarker {
         for (S3ObjectSummary objectSummary : objects.getObjectSummaries()){
             s3Client.deleteObject(BUCKET_NAME, objectSummary.getKey());
         }
-
+        s3Client.deleteObject(BUCKET_NAME, "oneshot");
         //put the log files in s3 bucket to keep the track of benchmarking
 
     }
@@ -240,7 +256,7 @@ public class MainS3{
         S3Benchmarker s3Benchmarker = null;
         try{
             s3Benchmarker = new S3Benchmarker();
-            s3Benchmarker.createEmptyFiles();
+            s3Benchmarker.startEvaluation();
             // Do a cleanup
             s3Benchmarker.cleanup();
         }finally {
