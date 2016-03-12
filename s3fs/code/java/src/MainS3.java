@@ -10,6 +10,7 @@ import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.TransferManager;
+import com.google.common.base.Stopwatch;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -20,6 +21,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 
 class S3Benchmarker {
@@ -110,13 +112,24 @@ class S3Benchmarker {
         }
         logBuffer.append(getTimeStamp()+ " : INFO : Uploading a "+NUM_FILES+" empty files to S3 \n");
         System.out.println("INFO : Uploading a "+NUM_FILES+" empty files to S3 ");
+        Stopwatch timer = Stopwatch.createStarted();
         for (int i = 1; i <= NUM_FILES ; i ++){
             String key = DIR_NAME_S3+ File.separator + i+".txt";
             String fileName = dirName.getPath() + File.separator + i+".txt";
             s3Client.putObject(new PutObjectRequest(BUCKET_NAME, key, fileName));
         }
-        System.out.println("INFO : Finished uploading "+NUM_FILES+" empty files to S3 ");
-        logBuffer.append(getTimeStamp() + " :  INFO : Finished uploading "+NUM_FILES+" empty files to S3 \n");
+        Stopwatch stop = timer.stop();
+        System.out.println("Uploaded "+NUM_FILES+" in the S3 bucket - "+BUCKET_NAME);
+        System.out.println("Total time taken in Microseconds : "+stop.elapsed(TimeUnit.MICROSECONDS));
+        System.out.println("Total time taken in Milliseconds : "+stop.elapsed(TimeUnit.MILLISECONDS));
+        System.out.println("Total time taken in Seconds : "+stop.elapsed(TimeUnit.SECONDS));
+        System.out.println("Total time taken in Minutes : "+stop.elapsed(TimeUnit.MINUTES));
+        System.out.println("INFO : Finished uploading " + NUM_FILES + " empty files to S3 ");
+        logBuffer.append(getTimeStamp() + " :  INFO : Finished uploading " + NUM_FILES + " empty files to S3 \n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Microseconds : " + stop.elapsed(TimeUnit.MICROSECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Milliseconds : " + stop.elapsed(TimeUnit.MILLISECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Seconds : " + stop.elapsed(TimeUnit.SECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Minutes : " + stop.elapsed(TimeUnit.MINUTES)+"\n");
     }
 
     /**
@@ -130,8 +143,8 @@ class S3Benchmarker {
         AWS_ACCESS_KEY_ID = System.getenv("AWS_ACCESS_KEY_ID");
         AWS_SECRET_ACCESS_KEY = System.getenv("AWS_SECRET_ACCESS_KEY");
         BUCKET_NAME = System.getenv("BUCKET_NAME");
-        //NUM_FILES = Integer.parseInt(System.getenv("NUM_FILES"));
-        NUM_FILES = 10;
+        NUM_FILES = Integer.parseInt(System.getenv("NUM_FILES"));
+
         if (AWS_ACCESS_KEY_ID == null || AWS_SECRET_ACCESS_KEY == null || BUCKET_NAME == null) {
             logBuffer.append(getTimeStamp()+ " : ERROR : AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / BUCKET_NAME may be null \n");
             isSuccess = false;
@@ -239,6 +252,5 @@ public class MainS3{
             FileUtils.writeStringToFile(file, logs);
             s3Client.putObject(new PutObjectRequest(s3Benchmarker.getBUCKET_NAME(), "logs/"+logFile, file));
         }
-
     }
 }
