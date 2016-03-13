@@ -49,6 +49,7 @@ class S3Benchmarker {
     private StringBuffer logBuffer = new StringBuffer();
 
     public S3Benchmarker(){
+
         logBuffer.append(getTimeStamp()+ " : INFO : Inside S3BenchMarker constructor \n");
         if(!setup()){
             try {
@@ -61,15 +62,17 @@ class S3Benchmarker {
     }
 
 
-    boolean startEvaluation() throws IOException {
+    boolean startEvaluation(long size, int count) throws IOException {
         try {
+            uploadFiles(size, count);
+            cleanup(true, false);
             // empty files
-            uploadFiles(0l, 10);
-            cleanup(true, true);
+            //uploadFiles(0l, 10000);
+            //cleanup(true, true);
 
             //1 kb files
-            uploadFiles(1024l, 10);
-            cleanup(true, true);
+            //uploadFiles(1024l, 10);
+            //cleanup(true, true);
            /* uploadFiles(10240l, 1000);//10 kb
             uploadFiles(102400l, 1000);// 100 kb
             uploadFiles(1024000l, 1000);// 1 mb
@@ -313,7 +316,7 @@ public class MainS3{
         S3Benchmarker s3Benchmarker = null;
         try{
             s3Benchmarker = new S3Benchmarker();
-            s3Benchmarker.startEvaluation();
+            s3Benchmarker.startEvaluation(Long.parseLong(args[0]), Integer.parseInt(args[1]));
         }finally {
             StringBuffer logBuffer = s3Benchmarker.getLogBuffer();
             logBuffer.append("Final Result for S3 Evaluation with time stamps \n");
@@ -332,7 +335,8 @@ public class MainS3{
             File file = new File(logFilePath);
             AmazonS3 s3Client = s3Benchmarker.getS3Client();
             FileUtils.writeStringToFile(file, logs);
-            s3Client.putObject(new PutObjectRequest(s3Benchmarker.getBUCKET_NAME(), "logs/"+logFile, file));
+            s3Client.putObject(new PutObjectRequest(s3Benchmarker.getBUCKET_NAME(), "logs/" + logFile, file));
+            System.exit(0);
         }
     }
 }
