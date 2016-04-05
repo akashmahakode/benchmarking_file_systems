@@ -22,18 +22,21 @@ set -x
 NUM_NODES=4
 awsKey="aws1.pem"
 awsUser="ubuntu"
-nodeAdmin="ec2-52-207-228-176.compute-1.amazonaws.com"
-node0="ec2-52-90-96-126.compute-1.amazonaws.com"
-node1="ec2-52-90-161-212.compute-1.amazonaws.com"
-node2="ec2-52-90-160-231.compute-1.amazonaws.com"
+nodeAdmin="ec2-54-165-69-146.compute-1.amazonaws.com"
+#Monitor
+node0="ec2-54-164-180-70.compute-1.amazonaws.com"
+node1="ec2-54-172-204-195.compute-1.amazonaws.com"
+node2="ec2-52-91-158-235.compute-1.amazonaws.com"
 
-ipNode3="ip-172-31-15-233.ec2.internal"
-ipNode0="ip-172-31-9-79.ec2.internal"
-ipNode1="ip-172-31-11-25.ec2.internal"
-ipNode2="ip-172-31-12-208.ec2.internal"
+#Admin
+ipNode3="ip-172-31-10-65.ec2.internal"
+#Monitor
+ipNode0="ip-172-31-6-127.ec2.internal"
+ipNode1="ip-172-31-1-164.ec2.internal"
+ipNode2="ip-172-31-2-255.ec2.internal"
 
-#IP of monitor node
-monIP="172.31.9.79"
+#Private IP of monitor node
+monIP="172.31.6.127"
 
 NUM_NODES=4
 TEMP=3
@@ -122,11 +125,11 @@ ceph health
 #ceph-deploy purgedata $ipNode1 
 #Total PGs = (OSDs * 100)/Replicas
 
-ceph osd pool create cephfs_data 400
-ceph osd pool create cephfs_metadata 400
+ceph osd pool create cephfs_data 200
+ceph osd pool create cephfs_metadata 200
 
-ceph osd pool set cephfs_data size 1
-ceph osd pool set cephfs_metadata size 1
+ceph osd pool set cephfs_data size 2
+ceph osd pool set cephfs_metadata size 2
 
 ceph fs new cephfs cephfs_metadata cephfs_data
 ceph fs ls
@@ -150,27 +153,36 @@ sudo radosgw-admin user create --uid="testuser" --display-name="First User"
 COUNTER=0
 while [ $COUNTER -lt $TEMP ]; do
 	var="ipNode$COUNTER"
-	scp filegen.sh ${!var}:/home/$awsUser
-	scp setup_s3fs.sh ${!var}:/home/$awsUser
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo mkdir /mnt/mycephfs/benchmarking$COUNTER;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chown ubuntu:ubuntu /mnt/mycephfs/benchmarking$COUNTER;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mycephfs/benchmarking$COUNTER;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chmod 775 setup_s3fs.sh;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo ./setup_s3fs.sh;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chown ubuntu:ubuntu /mnt/mys3fs/benchmarking$COUNTER;exit"
+	#scp filegen.sh ${!var}:/home/$awsUser
+	#scp random_file_read.sh ${!var}:/home/$awsUser
+	#scp benchmarking.sh ${!var}:/home/$awsUser
+	#scp setup_s3fs.sh ${!var}:/home/$awsUser
+	#ssh -o StrictHostKeyChecking=no ${!var} exec "sudo mkdir /mnt/mycephfs/benchmarking$COUNTER;exit"
+	#ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chown ubuntu:ubuntu /mnt/mycephfs/benchmarking$COUNTER;exit"
+	#ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mycephfs/benchmarking$COUNTER;exit"
+	#ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/random_file_read.sh /mnt/mycephfs/benchmarking$COUNTER;exit"
+	#ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/benchmarking.sh /mnt/mycephfs/benchmarking$COUNTER;exit"
+	#ssh -o StrictHostKeyChecking=no ${!var} exec "chmod 775 /mnt/mycephfs/benchmarking$COUNTER/*;exit"
+	
+	#	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chmod 775 setup_s3fs.sh;exit"
+	#	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo ./setup_s3fs.sh;exit"
+	#	ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER;exit"
+	#	ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER;exit"
+	#	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chown ubuntu:ubuntu /mnt/mys3fs/benchmarking$COUNTER;exit"
 	let COUNTER=COUNTER+1 
 done	
 
 sudo mkdir /mnt/mycephfs/benchmarking$COUNTER	
 sudo chown ubuntu:ubuntu /mnt/mycephfs/benchmarking$COUNTER
 cp ~/filegen.sh /mnt/mycephfs/benchmarking$COUNTER
+cp ~/file_read.sh /mnt/mycephfs/benchmarking$COUNTER
+cp ~/benchmarking.sh /mnt/mycephfs/benchmarking$COUNTER
+chmod 775 /mnt/mycephfs/benchmarking$COUNTER/* 
 
-sudo chmod 775 setup_s3fs.sh
-sudo ./setup_s3fs.sh
-sudo mkdir /mnt/mys3fs/benchmarking$COUNTER
-sudo chown ubuntu:ubuntu /mnt/mys3fs/benchmarking$COUNTER
-cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER
+#sudo chmod 775 setup_s3fs.sh
+#sudo ./setup_s3fs.sh
+#sudo mkdir /mnt/mys3fs/benchmarking$COUNTER
+#sudo chown ubuntu:ubuntu /mnt/mys3fs/benchmarking$COUNTER
+#cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER
 
 	
