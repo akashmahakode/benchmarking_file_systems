@@ -120,9 +120,9 @@ class S3Benchmarker {
         File dirName = createDirectory("file_size_"+fileSize);
 
         logBuffer.append(getTimeStamp() + " : INFO : Creating " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
         System.out.println(getTimeStamp() + " : INFO : Creating  " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
 
         for (int i = 1; i <= fileCount ; i ++){
             RandomAccessFile file = new RandomAccessFile(dirName.getPath() + File.separator + i+".txt", "rw");
@@ -131,9 +131,9 @@ class S3Benchmarker {
         }
 
         logBuffer.append(getTimeStamp() + " : INFO : Created " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
         System.out.println(getTimeStamp() + " : INFO : Created  " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
 
         logBuffer.append(getTimeStamp() + " : INFO : Uploading " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
                 " to S3 \"ONE AT A TIME\"\n");
@@ -141,11 +141,14 @@ class S3Benchmarker {
                 " to S3 \"ONE AT A TIME\"\n");
 
         Stopwatch timer = Stopwatch.createStarted();
-        for (int i = 1; i <= fileCount ; i ++){
-            String key = DIR_NAME_S3+ File.separator + i+".txt";
-            String fileName = dirName.getPath() + File.separator + i+".txt";
-            s3Client.putObject(new PutObjectRequest(BUCKET_NAME, key, new File(fileName)));
+        if(fileSize < 1024000000){
+            for (int i = 1; i <= fileCount ; i ++){
+                String key = DIR_NAME_S3+ File.separator + i+".txt";
+                String fileName = dirName.getPath() + File.separator + i+".txt";
+                s3Client.putObject(new PutObjectRequest(BUCKET_NAME, key, new File(fileName)));
+            }
         }
+
         Stopwatch stop = timer.stop();
         // fileSize:fileCount:SINGLE
         // fileSize:fileCount:BULK
