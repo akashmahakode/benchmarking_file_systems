@@ -4,7 +4,7 @@ readarray a < $ip-file
 cd some_dir
 i=0
 while [ "$i" -lt "${#a[@]}" ]; do
-	cat ${a[$i]} > /dev/null
+	../open.sh ${a[$i]}
 	i=$(($i + 1))
 done
 cd ..

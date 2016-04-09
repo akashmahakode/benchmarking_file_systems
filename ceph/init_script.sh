@@ -21,7 +21,7 @@ set -x
 
 awsKey="aws1.pem"
 awsUser="ubuntu"
-nodeAdmin="ec2-54-165-69-146.compute-1.amazonaws.com"
+nodeAdmin="ec2-54-209-39-224.compute-1.amazonaws.com"
 
 scp -i $awsKey $awsKey $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey setup_ceph.sh $awsUser@$nodeAdmin:/home/$awsUser
@@ -29,6 +29,7 @@ scp -i $awsKey setup_ceph.sh $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey filegen.sh $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey file_read.sh $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey benchmarking.sh $awsUser@$nodeAdmin:/home/$awsUser
+scp -i $awsKey open.sh $awsUser@$nodeAdmin:/home/$awsUser
 
 ssh -i $awsKey $awsUser@$nodeAdmin exec "chmod 775 setup_ceph.sh"
 ssh -i $awsKey $awsUser@$nodeAdmin exec "./setup_ceph.sh"

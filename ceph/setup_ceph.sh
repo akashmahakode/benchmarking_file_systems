@@ -22,21 +22,21 @@ set -x
 NUM_NODES=4
 awsKey="aws1.pem"
 awsUser="ubuntu"
-nodeAdmin="ec2-54-165-69-146.compute-1.amazonaws.com"
+nodeAdmin="ec2-54-209-39-224.compute-1.amazonaws.com"
 #Monitor
-node0="ec2-54-164-180-70.compute-1.amazonaws.com"
-node1="ec2-54-172-204-195.compute-1.amazonaws.com"
-node2="ec2-52-91-158-235.compute-1.amazonaws.com"
+node0="ec2-54-209-24-153.compute-1.amazonaws.com"
+node1="ec2-54-84-192-4.compute-1.amazonaws.com"
+node2="ec2-54-209-19-247.compute-1.amazonaws.com"
 
 #Admin
-ipNode3="ip-172-31-10-65.ec2.internal"
+ipNode3="ip-172-31-10-171.ec2.internal"
 #Monitor
-ipNode0="ip-172-31-6-127.ec2.internal"
-ipNode1="ip-172-31-1-164.ec2.internal"
-ipNode2="ip-172-31-2-255.ec2.internal"
+ipNode0="ip-172-31-4-233.ec2.internal"
+ipNode1="ip-172-31-6-116.ec2.internal"
+ipNode2="ip-172-31-1-86.ec2.internal"
 
 #Private IP of monitor node
-monIP="172.31.6.127"
+monIP="172.31.4.233"
 
 NUM_NODES=4
 TEMP=3
@@ -177,6 +177,7 @@ sudo chown ubuntu:ubuntu /mnt/mycephfs/benchmarking$COUNTER
 cp ~/filegen.sh /mnt/mycephfs/benchmarking$COUNTER
 cp ~/file_read.sh /mnt/mycephfs/benchmarking$COUNTER
 cp ~/benchmarking.sh /mnt/mycephfs/benchmarking$COUNTER
+cp ~/open.sh /mnt/mycephfs/benchmarking$COUNTER
 chmod 775 /mnt/mycephfs/benchmarking$COUNTER/* 
 
 #sudo chmod 775 setup_s3fs.sh

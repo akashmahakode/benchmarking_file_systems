@@ -63,6 +63,8 @@ runEval(){
 fn=`hostname`
 
 runEval 100 100
+runEval 10000 0
+runEval 10000 1024	
 runEval 1000 10240
 runEval 1000 102400
 runEval 1000 1024000
@@ -70,8 +72,7 @@ runEval 1000 10240000
 runEval 100 102400000
 runEval 10 1024000000
 runEval 1 10240000000
-runEval 10000 0
-runEval 10000 1024	
+
 			
 echo "Running 0kb evaluation type 1" 
 sync 0KBOPT1
