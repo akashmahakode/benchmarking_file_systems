@@ -21,7 +21,16 @@ set -x
 
 awsKey="aws1.pem"
 awsUser="ubuntu"
-nodeAdmin="ec2-54-209-39-224.compute-1.amazonaws.com"
+
+# get ceph instances
+#create dns files
+aws ec2 describe-instances --filters "Name=group-name,Values=CephOpen" --query "Reservations[*].Instances[*].PublicDnsName" | grep ec | sed 's/ //g' | sed 's/"//g' > dnsNames.txt
+#create ipFiles
+aws ec2 describe-instances --filters "Name=group-name,Values=CephOpen" --query "Reservations[*].Instances[*].PrivateDnsName" | grep ip | sed 's/ //g' | sed 's/"//g' > ipNames.txt
+aws ec2 describe-instances --filters "Name=group-name,Values=CephOpen" --query "Reservations[*].Instances[*].PrivateIpAddress" | grep \" | sed 's/ //g' | sed 's/"//g' > private.txt
+
+nodeAdmin=$(head -n 1 dnsNames.txt)
+
 
 scp -i $awsKey $awsKey $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey setup_ceph.sh $awsUser@$nodeAdmin:/home/$awsUser
@@ -30,6 +39,9 @@ scp -i $awsKey filegen.sh $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey file_read.sh $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey benchmarking.sh $awsUser@$nodeAdmin:/home/$awsUser
 scp -i $awsKey open.sh $awsUser@$nodeAdmin:/home/$awsUser
+scp -i $awsKey dnsNames.txt $awsUser@$nodeAdmin:/home/$awsUser
+scp -i $awsKey ipNames.txt $awsUser@$nodeAdmin:/home/$awsUser
+scp -i $awsKey private.txt $awsUser@$nodeAdmin:/home/$awsUser
 
 ssh -i $awsKey $awsUser@$nodeAdmin exec "chmod 775 setup_ceph.sh"
 ssh -i $awsKey $awsUser@$nodeAdmin exec "./setup_ceph.sh"

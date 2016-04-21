@@ -19,34 +19,27 @@ set -x
 #node0, node1, node2 are the cluster nodes
 #All nodes host the OSD
 
-NUM_NODES=4
+
 awsKey="aws1.pem"
 awsUser="ubuntu"
-nodeAdmin="ec2-54-209-39-224.compute-1.amazonaws.com"
-#Monitor
-node0="ec2-54-209-24-153.compute-1.amazonaws.com"
-node1="ec2-54-84-192-4.compute-1.amazonaws.com"
-node2="ec2-54-209-19-247.compute-1.amazonaws.com"
+REPLICAS=1
 
-#Admin
-ipNode3="ip-172-31-10-171.ec2.internal"
-#Monitor
-ipNode0="ip-172-31-4-233.ec2.internal"
-ipNode1="ip-172-31-6-116.ec2.internal"
-ipNode2="ip-172-31-1-86.ec2.internal"
-
+#Monitor Node 1, Admin Node 0
 #Private IP of monitor node
-monIP="172.31.4.233"
+#monIP="172.31.5.51"
+monIP=`sed '2q;d' private.txt`
 
-NUM_NODES=4
-TEMP=3
+readarray node < dnsNames.txt
+readarray ipNode < ipNames.txt
+
+NUM_NODES=${#node[@]}
 
 ssh-keygen -t rsa -b 2048
-COUNTER=0
-while [  $COUNTER -lt $TEMP ]; do
+i=1
+while [  $i -lt $NUM_NODES ]; do
 	var="node$COUNTER"
-	cat .ssh/id_rsa.pub | ssh -o StrictHostKeyChecking=no -i $awsKey ${!var} "cat - >> ~/.ssh/authorized_keys2"
-    let COUNTER=COUNTER+1 
+	cat .ssh/id_rsa.pub | ssh -o StrictHostKeyChecking=no -i $awsKey ${node[$i]} "cat - >> ~/.ssh/authorized_keys2"
+    let i=i+1 
 done
 
 #Install ceph on admin-node
@@ -56,66 +49,70 @@ sudo apt-get update
 sudo apt-get install ceph-deploy
 
 #Install ceph on the other cluster nodes
-COUNTER=0
-while [ $COUNTER -lt $NUM_NODES ]; do
-	var="ipNode$COUNTER"
+i=0
+while [ $i -lt $NUM_NODES ]; do
+	#var="ipNode$COUNTER"
 	#ceph-deploy purge ${!var}
-	ceph-deploy purgedata ${!var}
-	ceph-deploy install ${!var}
-    let COUNTER=COUNTER+1 
+	ceph-deploy purgedata ${ipNode[$i]}
+	ceph-deploy install ${ipNode[$i]}
+    let i=i+1 
 done
 
-#Deploy node0 as the monitor
-ceph-deploy new $ipNode0
-ceph-deploy mon create $ipNode0
-ceph-deploy gatherkeys $ipNode0
+i=1
+#Deploy node1 as the monitor
+ceph-deploy new ${ipNode[$i]}
+ceph-deploy mon create ${ipNode[$i]}
+ceph-deploy gatherkeys ${ipNode[$i]}
 
-COUNTER=0
-while [ $COUNTER -lt $TEMP ]; do
-	var="ipNode$COUNTER"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo mkdir /tmp/osd;exit"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo mkdir /mnt/mycephfs;exit"
-	let COUNTER=COUNTER+1 
+i=1
+while [ $i -lt $NUM_NODES ]; do
+	ssh -o StrictHostKeyChecking=no ${ipNode[$i]} exec "sudo mkdir /tmp/osd;exit"
+	ssh -o StrictHostKeyChecking=no ${ipNode[$i]} exec "sudo mkdir /mnt/mycephfs;exit"
+	let i=i+1 
 done
 sudo mkdir /tmp/osd
 sudo mkdir /mnt/mycephfs
 
 #Prepare and activate OSD
-COUNTER=0
-while [ $COUNTER -lt $NUM_NODES ]; do
-	var="ipNode$COUNTER"
-	ceph-deploy osd prepare ${!var}:/tmp/osd 
-	let COUNTER=COUNTER+1 
+i=0
+while [ $i -lt $NUM_NODES ]; do
+	name=`echo ${ipNode[$i]} | xargs`
+	ceph-deploy osd prepare $name:/tmp/osd 
+	let i=i+1 
 done
 
-COUNTER=0
-
-while [ $COUNTER -lt $TEMP ]; do
-	var="ipNode$COUNTER"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chown -R ceph:ceph /tmp/osd;exit"
-	let COUNTER=COUNTER+1 
+i=1
+while [ $i -lt $NUM_NODES ]; do
+	ssh -o StrictHostKeyChecking=no ${ipNode[$i]} exec "sudo chown -R ceph:ceph /tmp/osd;exit"
+	let i=i+1 
 done
 sudo chown -R ceph:ceph /tmp/osd
 
-COUNTER=0
-while [ $COUNTER -lt $NUM_NODES ]; do
-	var="ipNode$COUNTER"
-	ceph-deploy osd activate ${!var}:/tmp/osd 
-	let COUNTER=COUNTER+1 
+i=0
+while [ $i -lt $NUM_NODES ]; do
+	name=`echo ${ipNode[$i]} | xargs`
+	ceph-deploy osd activate $name:/tmp/osd 
+	let i=i+1 
 done
 
-#Deploy node0 as the monitor
-ceph-deploy mds create $ipNode0
+i=1
+#Deploy node1 as the monitor
+ceph-deploy mds create ${ipNode[$i]}
 
 #Setup Cluster access from all nodes
-ceph-deploy admin $ipNode3 $ipNode0 $ipNode1 $ipNode2
+#ceph-deploy admin $ipNode3 $ipNode0 $ipNode1 $ipNode2
+i=0
+while [ $i -lt $NUM_NODES ]; do
+	ceph-deploy admin ${ipNode[$i]}
+	let i=i+1 
+done
 
-COUNTER=0
+
+i=1
 #Provide permissions to key
-while [ $COUNTER -lt $TEMP ]; do
-	var="ipNode$COUNTER"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chmod +r /etc/ceph/ceph.client.admin.keyring;exit"
-	let COUNTER=COUNTER+1 
+while [ $i -lt $NUM_NODES ]; do
+	ssh -o StrictHostKeyChecking=no ${ipNode[$i]} exec "sudo chmod +r /etc/ceph/ceph.client.admin.keyring;exit"
+	let i=i+1 
 done
 sudo chmod +r /etc/ceph/ceph.client.admin.keyring
 
@@ -125,11 +122,13 @@ ceph health
 #ceph-deploy purgedata $ipNode1 
 #Total PGs = (OSDs * 100)/Replicas
 
-ceph osd pool create cephfs_data 200
-ceph osd pool create cephfs_metadata 200
+let PG=NUM_NODES*100/REPLICAS
 
-ceph osd pool set cephfs_data size 2
-ceph osd pool set cephfs_metadata size 2
+ceph osd pool create cephfs_data $PG
+ceph osd pool create cephfs_metadata $PG
+
+ceph osd pool set cephfs_data size 1
+ceph osd pool set cephfs_metadata size 1
 
 ceph fs new cephfs cephfs_metadata cephfs_data
 ceph fs ls
@@ -138,21 +137,22 @@ ceph mds stat
 # mounting volumes
 secretkey=`cat /etc/ceph/ceph.client.admin.keyring	| grep key | awk '{print $NF}'`
 
-COUNTER=0	
-while [ $COUNTER -lt $TEMP ]; do
+i=1
+while [ $i -lt $NUM_NODES ]; do
 	var="ipNode$COUNTER"
-	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo mount -t ceph $monIP:6789:/ /mnt/mycephfs -o name=admin,secret=$secretkey;exit"
-	let COUNTER=COUNTER+1 
+	ssh -o StrictHostKeyChecking=no ${ipNode[$i]} exec "sudo mount -t ceph $monIP:6789:/ /mnt/mycephfs -o name=admin,secret=$secretkey;exit"
+	let i=i+1 
 done	
 sudo mount -t ceph $monIP:6789:/ /mnt/mycephfs -o name=admin,secret=$secretkey
 
+i=1
 # deploy rgs on gateway node
-ceph-deploy rgw create $ipNode1
+ceph-deploy rgw create ${ipNode[$i]}
 sudo radosgw-admin user create --uid="testuser" --display-name="First User"
 
-COUNTER=0
-while [ $COUNTER -lt $TEMP ]; do
-	var="ipNode$COUNTER"
+#i=1
+#while [ $i -lt $NUM_NODES ]; do
+#	var="ipNode$COUNTER"
 	#scp filegen.sh ${!var}:/home/$awsUser
 	#scp random_file_read.sh ${!var}:/home/$awsUser
 	#scp benchmarking.sh ${!var}:/home/$awsUser
@@ -169,16 +169,18 @@ while [ $COUNTER -lt $TEMP ]; do
 	#	ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER;exit"
 	#	ssh -o StrictHostKeyChecking=no ${!var} exec "cp ~/filegen.sh /mnt/mys3fs/benchmarking$COUNTER;exit"
 	#	ssh -o StrictHostKeyChecking=no ${!var} exec "sudo chown ubuntu:ubuntu /mnt/mys3fs/benchmarking$COUNTER;exit"
-	let COUNTER=COUNTER+1 
-done	
+#	let i=i+1 
+#done	
 
-sudo mkdir /mnt/mycephfs/benchmarking$COUNTER	
-sudo chown ubuntu:ubuntu /mnt/mycephfs/benchmarking$COUNTER
-cp ~/filegen.sh /mnt/mycephfs/benchmarking$COUNTER
-cp ~/file_read.sh /mnt/mycephfs/benchmarking$COUNTER
-cp ~/benchmarking.sh /mnt/mycephfs/benchmarking$COUNTER
-cp ~/open.sh /mnt/mycephfs/benchmarking$COUNTER
-chmod 775 /mnt/mycephfs/benchmarking$COUNTER/* 
+sudo mkdir /mnt/mycephfs/benchmarking$i	
+sudo chown ubuntu:ubuntu /mnt/mycephfs/benchmarking$i
+cp ~/filegen.sh /mnt/mycephfs/benchmarking$i
+cp ~/file_read.sh /mnt/mycephfs/benchmarking$i
+cp ~/benchmarking.sh /mnt/mycephfs/benchmarking$i
+cp ~/open.sh /mnt/mycephfs/benchmarking$i
+chmod 775 /mnt/mycephfs/benchmarking$i/* 
+mkdir /mnt/mycephfs/benchmarking$i/some_dir 
+mkdir /mnt/mycephfs/benchmarking$i/sync
 
 #sudo chmod 775 setup_s3fs.sh
 #sudo ./setup_s3fs.sh
