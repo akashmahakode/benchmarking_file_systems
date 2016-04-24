@@ -68,10 +68,10 @@ fn=`hostname`
 
 TIMEFORMAT='%3R'
 
-runEval 1 10240000000
-runEval 10 1024000000
-runEval 100 102400000
-runEval 1000 10240000
+#runEval 1 10240000000
+#runEval 10 1024000000
+#runEval 100 102400000
+#runEval 1000 10240000
 runEval 1000 1024000
 runEval 1000 102400
 runEval 1000 10240
@@ -81,7 +81,7 @@ runEval 10000 0
 			
 #echo "Running 0kb evaluation type 1" 
 #sync 0KBOPT1
-#mkdir $fn-some_dir; cd $fn-some_dir; time for i in {1..10000}; do touch $i.txt; done
+#mkdir $fn-some_dir; cd $fn-some_dir; time for i in {1..1000}; do touch $i.txt; done
 #cd ..
 #sync DELOPT1
 #rm -rf $fn-some_dir
