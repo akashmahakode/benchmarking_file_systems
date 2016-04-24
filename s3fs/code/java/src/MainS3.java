@@ -9,6 +9,7 @@ import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.s3.transfer.MultipleFileDownload;
 import com.amazonaws.services.s3.transfer.MultipleFileUpload;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.google.common.base.Stopwatch;
@@ -37,6 +38,7 @@ class S3Benchmarker {
     private BasicAWSCredentials awsCredentials;
     private AmazonS3 s3Client;
     private String DIR_NAME_S3;
+    private String dirToUse;
 
     private List<File> evaluationDirectories;
     /**
@@ -66,38 +68,10 @@ class S3Benchmarker {
         try {
             uploadFiles(size, count);
             cleanup(true, false);
-            // empty files
-            //uploadFiles(0l, 10000);
-            //cleanup(true, true);
-
-            //1 kb files
-            //uploadFiles(1024l, 10);
-            //cleanup(true, true);
-           /* uploadFiles(10240l, 1000);//10 kb
-            uploadFiles(102400l, 1000);// 100 kb
-            uploadFiles(1024000l, 1000);// 1 mb
-            uploadFiles(10240000l, 1000);// 10 mb
-            uploadFiles(102400000l, 100);// 100 mb
-            uploadFiles(1024000000l, 10);// 1 Gb
-            uploadFiles(10240000000l, 1);// 10 Gb*/
+            downloadFiles(size, count);
+            cleanup(true, false);
         } catch (AmazonServiceException ase) {
-            ase.printStackTrace();
-            System.out.println("Caught an AmazonServiceException, which " +
-                    "means your request made it " +
-                    "to Amazon S3, but was rejected with an error response" +
-                    " for some reason.");
-            System.out.println("Error Message:    " + ase.getMessage());
-            System.out.println("HTTP Status Code: " + ase.getStatusCode());
-            System.out.println("AWS Error Code:   " + ase.getErrorCode());
-            System.out.println("Error Type:       " + ase.getErrorType());
-            System.out.println("Request ID:       " + ase.getRequestId());
-            logBuffer.append(getTimeStamp() + " : ERROR : Exception occured while setup \n" + ase.getLocalizedMessage());
-            logBuffer.append("Error Message:    \n" + ase.getMessage());
-            logBuffer.append("HTTP Status Code: \n" + ase.getStatusCode());
-            logBuffer.append("AWS Error Code:   \n" + ase.getErrorCode());
-            logBuffer.append("Error Type:       \n" + ase.getErrorType());
-            logBuffer.append("Request ID:       \n" + ase.getRequestId());
-
+            printException(ase);
         } catch (AmazonClientException ace) {
             ace.printStackTrace();
             System.out.println("Caught an AmazonClientException, which " +
@@ -111,6 +85,57 @@ class S3Benchmarker {
         return false;
     }
 
+    private void printException(AmazonServiceException ase) {
+        ase.printStackTrace();
+        System.out.println("Caught an AmazonServiceException, which " +
+                "means your request made it " +
+                "to Amazon S3, but was rejected with an error response" +
+                " for some reason.");
+        System.out.println("Error Message:    " + ase.getMessage());
+        System.out.println("HTTP Status Code: " + ase.getStatusCode());
+        System.out.println("AWS Error Code:   " + ase.getErrorCode());
+        System.out.println("Error Type:       " + ase.getErrorType());
+        System.out.println("Request ID:       " + ase.getRequestId());
+        logBuffer.append(getTimeStamp() + " : ERROR : Exception occured while setup \n" + ase.getLocalizedMessage());
+        logBuffer.append("Error Message:    \n" + ase.getMessage());
+        logBuffer.append("HTTP Status Code: \n" + ase.getStatusCode());
+        logBuffer.append("AWS Error Code:   \n" + ase.getErrorCode());
+        logBuffer.append("Error Type:       \n" + ase.getErrorType());
+        logBuffer.append("Request ID:       \n" + ase.getRequestId());
+    }
+
+    private void downloadFiles(long size, int count) {
+        File dirName = createDirectory("file_size_"+size);
+        logBuffer.append(getTimeStamp() + " : INFO : Downloading " + count + "  files of size : " + FileUtils.byteCountToDisplaySize(size) + " " +
+                " to S3 \"IN BULK\"\n");
+        System.out.println(getTimeStamp() + " : INFO : Downloading  " + count + "  files of size : " + FileUtils.byteCountToDisplaySize(size) + " " +
+                " to S3 \"IN BULK\"\n");
+
+        TransferManager tm = new TransferManager(s3Client);
+        Stopwatch timer = Stopwatch.createStarted();
+        MultipleFileDownload download = tm.downloadDirectory(BUCKET_NAME, dirToUse, dirName);
+        try {
+            download.waitForCompletion();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        Stopwatch stop = timer.stop();
+        resultMap.put("fileSize="+FileUtils.byteCountToDisplaySize(size)+" : fileCount="+count+" : BULK",
+                stop.elapsed(TimeUnit.MILLISECONDS)+" ms OR "+stop.elapsed(TimeUnit.SECONDS)+" sec");
+        System.out.println(getTimeStamp() + " : INFO : INFO : Finished downloading " + count +  "  files of size : " + FileUtils.byteCountToDisplaySize(size) +" from S3 ");
+        System.out.println(getTimeStamp() + " : INFO : Uploaded "+count+" in the S3 bucket - "+BUCKET_NAME);
+        System.out.println(getTimeStamp() + " : INFO : Total time taken in Microseconds : "+stop.elapsed(TimeUnit.MICROSECONDS));
+        System.out.println(getTimeStamp() + " : INFO : Total time taken in Milliseconds : " + stop.elapsed(TimeUnit.MILLISECONDS));
+        System.out.println(getTimeStamp() + " : INFO : Total time taken in Seconds : " + stop.elapsed(TimeUnit.SECONDS));
+        System.out.println(getTimeStamp() + " : INFO : Total time taken in Minutes : " + stop.elapsed(TimeUnit.MINUTES));
+
+        logBuffer.append(getTimeStamp() + " :  INFO : Finished uploading " + count + "  files of size : " + FileUtils.byteCountToDisplaySize(size) +" from S3 \n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Microseconds : " + stop.elapsed(TimeUnit.MICROSECONDS) + "\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Milliseconds : " + stop.elapsed(TimeUnit.MILLISECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Seconds : " + stop.elapsed(TimeUnit.SECONDS)+"\n");
+        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Minutes : " + stop.elapsed(TimeUnit.MINUTES)+"\n");
+    }
+
     /**
      *Upload the files to S3 bucket
      * @param fileSize, size of file in Bytes
@@ -120,9 +145,9 @@ class S3Benchmarker {
         File dirName = createDirectory("file_size_"+fileSize);
 
         logBuffer.append(getTimeStamp() + " : INFO : Creating " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
         System.out.println(getTimeStamp() + " : INFO : Creating  " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
 
         for (int i = 1; i <= fileCount ; i ++){
             RandomAccessFile file = new RandomAccessFile(dirName.getPath() + File.separator + i+".txt", "rw");
@@ -131,38 +156,9 @@ class S3Benchmarker {
         }
 
         logBuffer.append(getTimeStamp() + " : INFO : Created " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
         System.out.println(getTimeStamp() + " : INFO : Created  " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " on " +InetAddress.getLocalHost()+"\n");
-
-        logBuffer.append(getTimeStamp() + " : INFO : Uploading " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " to S3 \"ONE AT A TIME\"\n");
-        System.out.println(getTimeStamp() + " : INFO : Uploading  " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
-                " to S3 \"ONE AT A TIME\"\n");
-
-        Stopwatch timer = Stopwatch.createStarted();
-        for (int i = 1; i <= fileCount ; i ++){
-            String key = DIR_NAME_S3+ File.separator + i+".txt";
-            String fileName = dirName.getPath() + File.separator + i+".txt";
-            s3Client.putObject(new PutObjectRequest(BUCKET_NAME, key, new File(fileName)));
-        }
-        Stopwatch stop = timer.stop();
-        // fileSize:fileCount:SINGLE
-        // fileSize:fileCount:BULK
-        resultMap.put("fileSize="+FileUtils.byteCountToDisplaySize(fileSize)+" : fileCount="+fileCount+" : SINGLE",
-                stop.elapsed(TimeUnit.MILLISECONDS)+" ms OR "+stop.elapsed(TimeUnit.SECONDS)+" sec");
-        System.out.println(getTimeStamp() + " : INFO : INFO : Finished uploading " + fileCount + "  files to S3 ");
-        System.out.println(getTimeStamp() + " : INFO : Uploaded "+fileCount+" in the S3 bucket - "+BUCKET_NAME);
-        System.out.println(getTimeStamp() + " : INFO : Total time taken in Microseconds : "+stop.elapsed(TimeUnit.MICROSECONDS));
-        System.out.println(getTimeStamp() + " : INFO : Total time taken in Milliseconds : " + stop.elapsed(TimeUnit.MILLISECONDS));
-        System.out.println(getTimeStamp() + " : INFO : Total time taken in Seconds : " + stop.elapsed(TimeUnit.SECONDS));
-        System.out.println(getTimeStamp() + " : INFO : Total time taken in Minutes : " + stop.elapsed(TimeUnit.MINUTES));
-
-        logBuffer.append(getTimeStamp() + " :  INFO : Finished uploading " + fileCount + " files to S3 \n");
-        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Microseconds : " + stop.elapsed(TimeUnit.MICROSECONDS) + "\n");
-        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Milliseconds : " + stop.elapsed(TimeUnit.MILLISECONDS)+"\n");
-        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Seconds : " + stop.elapsed(TimeUnit.SECONDS)+"\n");
-        logBuffer.append(getTimeStamp() + " :  INFO : Total time taken in Minutes : " + stop.elapsed(TimeUnit.MINUTES)+"\n");
+                " on " + InetAddress.getLocalHost() + "\n");
 
         logBuffer.append(getTimeStamp() + " : INFO : Uploading " + fileCount + "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) + " " +
                 " to S3 \"IN BULK\"\n");
@@ -170,14 +166,16 @@ class S3Benchmarker {
                 " to S3 \"IN BULK\"\n");
 
         TransferManager tm = new TransferManager(s3Client);
-        timer = Stopwatch.createStarted();
-        MultipleFileUpload upload = tm.uploadDirectory(BUCKET_NAME,  DIR_NAME_S3+ File.separator+ "oneshot", dirName, true);
+        Stopwatch timer = Stopwatch.createStarted();
+        dirToUse = DIR_NAME_S3+ File.separator+ "oneshot";
+        MultipleFileUpload upload = tm.uploadDirectory(BUCKET_NAME, dirToUse, dirName, true);
+
         try {
             upload.waitForCompletion();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        stop = timer.stop();
+        Stopwatch stop = timer.stop();
         resultMap.put("fileSize="+FileUtils.byteCountToDisplaySize(fileSize)+" : fileCount="+fileCount+" : BULK",
                 stop.elapsed(TimeUnit.MILLISECONDS)+" ms OR "+stop.elapsed(TimeUnit.SECONDS)+" sec");
         System.out.println(getTimeStamp() + " : INFO : INFO : Finished uploading " + fileCount +  "  files of size : " + FileUtils.byteCountToDisplaySize(fileSize) +" to S3 ");
