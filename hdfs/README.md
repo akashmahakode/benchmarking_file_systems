@@ -9,13 +9,16 @@ Add following at the end of /etc/ssh/ssh_config
 StrictHostKeyChecking no
 UserKnownHostsFile=/dev/null
 
-Step 3. Copy the key pair file someName.pem” to master node's home directory:
+Step 3. Copy the key pair file someKeyPair.pem to master node's home directory:
+> scp -i /path-of-someKeyPair/someKeyPair.pem /path-of-someKeyPair/someKeyPair.pem ubuntu@public-dns-master:/home/ubuntu
 
 Step 4: Run setPasswordless.sh as -
-> setPasswordless.sh someName.pem
+> setPasswordless.sh /someKeyPair.pem
 
 Enter the public DNS name of the master node e.g 
 ec2-54-205-45-8.compute-1.amazonaws.com
 
 Then it will ask for the slave public dns names separated by white space, Please make sure that you enter master dns name as well. Because Hadoop
 needs master should be able to perform passwordless ssh to itself.
+
+
